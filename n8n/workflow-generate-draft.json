@@ -1,0 +1,257 @@
+{
+  "name": "CS - 2. Generate Draft",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-draft",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "dbd4386c-6924-4dd2-a4ac-92b279710177",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        0
+      ],
+      "webhookId": "generate-draft"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.article_id }}"
+            }
+          ]
+        }
+      },
+      "id": "387be41f-d32a-490d-8dba-1bda1e056c49",
+      "name": "Read Article",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        176,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "n2G74afO8FNCNQ5K",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the LLM response: article markdown + metadata JSON\nconst output = $input.first().json.output;\nconst articleData = $('Read Article').first().json;\n\n// Split on the metadata separator\nconst parts = output.split('---METADATA---');\nconst markdown = parts[0].trim();\n\nlet metadata = {\n  meta_description: '',\n  keywords: [],\n  visual_suggestions: []\n};\n\nif (parts.length > 1) {\n  try {\n    const metaStr = parts[1].replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    metadata = JSON.parse(metaStr);\n  } catch (e) {\n    console.log('Warning: Could not parse metadata JSON, using defaults. Error:', e.message);\n  }\n}\n\n// Convert markdown to HTML\nfunction mdToHtml(md) {\n  let html = md;\n  // Headings (h3 before h2 before h1 to avoid conflicts)\n  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');\n  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');\n  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');\n  // Bold and italic\n  html = html.replace(/\\*\\*\\*(.+?)\\*\\*\\*/g, '<strong><em>$1</em></strong>');\n  html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');\n  html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');\n  // Blockquotes\n  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');\n  // Unordered lists\n  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');\n  html = html.replace(/((?:<li>.*<\\/li>\\n?)+)/g, '<ul>$1</ul>');\n  // Ordered lists\n  html = html.replace(/^\\d+\\. (.+)$/gm, '<li>$1</li>');\n  // Links\n  html = html.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href=\"$2\">$1</a>');\n  // Paragraphs: wrap remaining plain text lines\n  html = html.split('\\n\\n').map(block => {\n    const trimmed = block.trim();\n    if (!trimmed) return '';\n    if (/^<(h[1-3]|ul|ol|blockquote|li)/.test(trimmed)) return trimmed;\n    return '<p>' + trimmed.replace(/\\n/g, ' ') + '</p>';\n  }).join('\\n');\n  return html;\n}\n\nconst draftHtml = mdToHtml(markdown);\n\nreturn [{\n  json: {\n    article_id: articleData.id,\n    draft_html: draftHtml,\n    meta_description: metadata.meta_description || '',\n    keywords: metadata.keywords || [],\n    visual_suggestions: metadata.visual_suggestions || [],\n    status: 'draft'\n  }\n}];"
+      },
+      "id": "5326e952-d497-48f5-aaf4-1a05b84e9f07",
+      "name": "Parse Draft & Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.article_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "draft_html",
+              "fieldValue": "={{ $json.draft_html }}"
+            },
+            {
+              "fieldId": "meta_description",
+              "fieldValue": "={{ $json.meta_description }}"
+            },
+            {
+              "fieldId": "keywords",
+              "fieldValue": "={{ $json.keywords }}"
+            },
+            {
+              "fieldId": "visual_suggestions",
+              "fieldValue": "={{ $json.visual_suggestions }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "draft"
+            }
+          ]
+        }
+      },
+      "id": "2f1a5db6-58a0-462f-94f1-94aa997dc7d2",
+      "name": "Update Article",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        848,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "n2G74afO8FNCNQ5K",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, article_id: $json.article_id }) }}",
+        "options": {}
+      },
+      "id": "f886d22d-d1a0-4039-a726-4e7d2919fc88",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a Coolset Academy article on the following topic.\n\nTOPIC: {{ $json.topic_input }}\n\nTARGET KEYWORD: {{ $json.brief_json?.keyword || 'sustainability' }}\n\nCONTENT BRIEF:\n- Angle: {{ $json.brief_json?.angle || '' }}\n- Audience: {{ $json.brief_json?.audience || $json.target_audience || 'Sustainability managers' }}\n- Outline: {{ ($json.brief_json?.outline || []).join('\\n  - ') }}\n- Key points: {{ ($json.brief_json?.key_points || []).join('\\n  - ') }}\n\nADDITIONAL CONTEXT FROM THE USER:\n{{ $json.human_input || 'None provided' }}\n\nWrite the full article now following your system instructions.\n\nAfter the article, on a new line, provide a JSON block with metadata in this exact format:\n\n---METADATA---\n{\n  \"meta_description\": \"120–160 characters. Include the target keyword. No em dashes. Lead with the benefit, not what the article covers.\",\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\"],\n  \"visual_suggestions\": [\n    {\n      \"type\": \"cover\",\n      \"description\": \"Description of the hero/cover image\",\n      \"placement\": \"top\"\n    },\n    {\n      \"type\": \"supporting\",\n      \"description\": \"Description of a diagram, infographic, or visual\",\n      \"placement\": \"after section heading text\"\n    }\n  ]\n}\n\nInclude 1 cover visual and 2-3 supporting visuals. Each supporting visual's placement should reference a section heading from the article.",
+        "options": {
+          "systemMessage": "=You are a senior sustainability content writer at Coolset, a compliance-first sustainability platform for mid-market European companies. You write educational articles for Coolset's Academy — a resource hub for sustainability, compliance, and ESG professionals navigating EU regulations.\n\nYour reader is a sustainability manager, compliance lead, or operations director at a European company with 200–5,000 employees. They are time-poor, action-oriented, and need to understand both what a regulation requires and what they should actually do about it. They are not beginners — don't over-explain business fundamentals — but they may be encountering a specific regulation or framework for the first time.\n\n---\n\nVOICE AND TONE\n\nWrite like a knowledgeable colleague, not a textbook or a marketing page.\n\n- Use second person: \"you\" and \"your,\" not \"companies\" or \"organisations\" in the abstract.\n- Be direct and confident. State facts clearly. Don't hedge with \"it might be worth considering\" — say \"do this\" or \"you'll need to.\"\n- Stay professional but conversational. Contractions are fine (you'll, won't, it's). Exclamation marks are not.\n- Never use marketing language: no \"revolutionary,\" \"game-changing,\" \"cutting-edge,\" \"unlock,\" or \"leverage.\"\n- Never use filler intros. Don't open with \"In today's rapidly evolving landscape...\" — start with the point.\n- Present compliance as a practical task, not a threat. Urgency is fine; fear-mongering is not.\n\n---\n\nSTRUCTURE\n\nAll headings (H1, H2, H3) must use sentence case — capitalise only the first word and proper nouns. Example: \"What double materiality actually means for your company\" not \"What Double Materiality Actually Means for Your Company\". This matches Coolset's existing Academy style.\n\nEvery article must follow this skeleton:\n\n1. KEY TAKEAWAYS — 2 to 4 bullet points at the very top summarising the article's core points. The last bullet should briefly mention how Coolset helps with this topic — keep it factual and understated, not a sales pitch.\n\n2. BODY — Organise sections in this order where applicable:\n   - What it is (definition, context)\n   - Why it matters (business impact, regulatory driver)\n   - How it works (mechanics, process, requirements)\n   - Who's affected (scope, applicability, exemptions)\n   - What to do (actionable steps, timelines)\n\n   Use H2 (##) for major sections and H3 (###) for subsections. A reader skimming only headings should understand the article's full arc.\n\n3. FAQ (optional) — If the brief includes target FAQ questions, add a section with short Q&A pairs at the end.\n\n---\n\nFORMATTING RULES\n\n- Write in standard markdown. Use # for H1, ## for H2, ### for H3, **bold**, *italic*, > blockquotes, - bullet lists, 1. numbered lists.\n- Do not use horizontal rules (---) anywhere in the article body. Separate sections with headings only.\n- Short paragraphs: 1 to 4 sentences each. One point per paragraph.\n- Use bullet lists for 3+ non-sequential items. Use numbered lists for sequential steps.\n- Bold key terms on first mention and critical dates/thresholds.\n- Use em dashes (—) sparingly for inline asides — no more than 2–3 per article. Prefer commas or short separate sentences instead. Overusing em dashes makes the writing feel choppy.\n- Pull out important regulatory quotes as standalone blockquotes.\n- Spell out acronyms on first use with the abbreviation in parentheses, then use the acronym throughout.\n\n---\n\nLANGUAGE CONVENTIONS\n\n- British English spelling: authorised, organisation, fertilisers, programme, colour.\n- Dates: \"1 January 2026\" (day month year, no ordinals, no commas).\n- Percentages: 55% (symbol, no space).\n- Currency: €100 (symbol before number, no space).\n- Regulation names are proper nouns: European Green Deal, Fit for 55, CSRD, ESRS E1.\n\n---\n\nMETA DESCRIPTION\n\nEvery article must include a meta description. Rules:\n\n- Length: 120–160 characters (including spaces).\n- Include the target keyword naturally — do not force it.\n- Write as a single sentence or two short clauses joined by a comma or colon. No em dashes.\n- Describe what the reader will learn or be able to do — not what the article \"covers.\" Lead with the benefit or the key insight.\n- No clickbait, no marketing language. Same voice as the article.\n\n---\n\nCONTENT STANDARDS\n\n- Ground every claim in specifics: dates, thresholds, percentages, regulation references. Never say \"soon\" or \"in the near future\" when a date exists.\n- Explain jargon inline using em dashes. Don't avoid technical terms and don't over-explain them. Example: \"This creates a risk of carbon leakage — when companies shift production to countries with looser climate rules.\"\n- Cross-reference related EU regulations and frameworks naturally where relevant (CSRD, ETS, EU Taxonomy, ESRS, etc.).\n- End the article with concrete, actionable next steps — a short bulleted list of what the reader should do now.\n- When regulation status is pending or uncertain, state this explicitly. Never present draft or proposed rules as finalised.\n- Maintain a rhythm of short declarative sentences for key points mixed with slightly longer sentences for context.\n- Minimise passive voice. Default to active. Use passive only when the actor is unknown or the regulation itself is the subject."
+        }
+      },
+      "id": "aa3c1ba5-f56a-48e5-b626-c9eae2b9f960",
+      "name": "AI Draft Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        368,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-sonnet-4.6",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "e6c52d1b-f366-459f-9e76-40fd0d0d6983",
+      "name": "sonnet-4.6",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        288,
+        224
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "r433MoZZGOsLjy7p",
+          "name": "OpenRouter Credentials"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Article": {
+      "main": [
+        [
+          {
+            "node": "AI Draft Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Draft & Metadata": {
+      "main": [
+        [
+          {
+            "node": "Update Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Article": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Draft Writer": {
+      "main": [
+        [
+          {
+            "node": "Parse Draft & Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sonnet-4.6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Draft Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f980ea7e-8e5f-4a6e-9dc9-9311be5b2077",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "75d13ac94932aa15ce393c2710b6b540a9393b919f6fb77e7fb7f889daafb646"
+  },
+  "id": "ftI6dIN3pzcTnTqA",
+  "tags": [
+    {
+      "name": "coolset",
+      "id": "CUxoniUNI40soD7g",
+      "updatedAt": "2026-03-17T18:42:15.127Z",
+      "createdAt": "2026-03-17T18:42:15.127Z"
+    }
+  ]
+}

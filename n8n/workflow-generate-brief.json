@@ -1,0 +1,247 @@
+{
+  "name": "CS - 1. Generate Brief",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-brief",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b512c436-4cda-45d0-be52-d163a2c92a9b",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        -48
+      ],
+      "webhookId": "generate-brief"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.article_id }}"
+            }
+          ]
+        }
+      },
+      "id": "2d5ee2ee-de0d-4f54-a6a4-e4aa0d8aecc3",
+      "name": "Read Article",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "n2G74afO8FNCNQ5K",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the LLM response and prepare data for Supabase update\nconst output = $input.first().json.output;\n\n// Try to parse the JSON from the LLM response\nlet brief;\ntry {\n  // Handle case where LLM wraps JSON in markdown code fences\n  const cleaned = output.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  brief = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error(`Failed to parse LLM response as JSON: ${e.message}\\nRaw output: ${output}`);\n}\n\n// Generate slug from title\nconst slug = brief.title\n  .toLowerCase()\n  .replace(/[^a-z0-9\\s-]/g, '')\n  .replace(/\\s+/g, '-')\n  .replace(/-+/g, '-')\n  .substring(0, 80);\n\n// Prepare brief_json (without title — title goes in its own column)\nconst briefJson = {\n  keyword: brief.keyword,\n  outline: brief.outline,\n  angle: brief.angle,\n  audience: brief.audience,\n  key_points: brief.key_points\n};\n\nreturn [{\n  json: {\n    article_id: $('Read Article').first().json.id,\n    title: brief.title,\n    slug: slug,\n    brief_json: briefJson\n  }\n}];"
+      },
+      "id": "3bf345bf-b119-4dd5-a6f8-b8fa01304885",
+      "name": "Parse Brief JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.article_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.title }}"
+            },
+            {
+              "fieldId": "slug",
+              "fieldValue": "={{ $json.slug }}"
+            },
+            {
+              "fieldId": "brief_json",
+              "fieldValue": "={{ $json.brief_json }}"
+            }
+          ]
+        }
+      },
+      "id": "356addbf-1863-4e07-aa56-6953d7da1d85",
+      "name": "Update Article",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "n2G74afO8FNCNQ5K",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, article_id: $('Read Article').first().json.id }) }}",
+        "options": {}
+      },
+      "id": "aab74aa6-c252-49a3-b66d-05b0b7f710a5",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-flash-preview",
+        "options": {}
+      },
+      "id": "ce793712-031d-49ef-8777-fbcd2272f0fa",
+      "name": "gemini-3-flash-preview",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        160
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "r433MoZZGOsLjy7p",
+          "name": "OpenRouter Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a content brief for the following article.\n\nTOPIC: {{ $json.topic_input }}\nTARGET AUDIENCE: {{ $json.target_audience || 'Sustainability managers' }}\nHUMAN INPUT: {{ $json.human_input || 'None provided' }}\n\nReturn your response as valid JSON with this exact structure:\n{\n  \"title\": \"Article title (concise, SEO-friendly, no clickbait)\",\n  \"keyword\": \"primary target keyword phrase\",\n  \"outline\": [\"Section 1 heading\", \"Section 2 heading\", ...],\n  \"angle\": \"The specific angle or hook for this article\",\n  \"audience\": \"Target reader description\",\n  \"key_points\": [\"Key point 1\", \"Key point 2\", ...]\n}\n\nReturn ONLY the JSON object, no markdown fences or other text.",
+        "options": {
+          "systemMessage": "=You are a senior content strategist at Coolset, a compliance-first sustainability platform for mid-market European companies. You create structured content briefs for Coolset's Academy — a resource hub for sustainability, compliance, and ESG professionals.\n\nYour briefs must:\n- Target a specific, search-worthy keyword phrase (long-tail preferred)\n- Define a clear angle that differentiates from generic content on the topic\n- Structure the outline following: What it is → Why it matters → How it works → Who's affected → What to do\n- Include 3-5 key points the article must cover\n- Match the audience segment provided\n- Be grounded in specifics — regulations, dates, thresholds — not vague generalities\n\nAlways respond with valid JSON only."
+        }
+      },
+      "id": "443b6419-f83f-4271-8e76-f533f2659acd",
+      "name": "Generate Brief",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        48,
+        -48
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Article": {
+      "main": [
+        [
+          {
+            "node": "Generate Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Brief JSON": {
+      "main": [
+        [
+          {
+            "node": "Update Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Article": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini-3-flash-preview": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Brief",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Brief": {
+      "main": [
+        [
+          {
+            "node": "Parse Brief JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "820ecb2e-79ee-4b98-979c-c5f5c01375bd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "75d13ac94932aa15ce393c2710b6b540a9393b919f6fb77e7fb7f889daafb646"
+  },
+  "id": "lpygdiYKjROReUbA",
+  "tags": [
+    {
+      "name": "coolset",
+      "id": "CUxoniUNI40soD7g",
+      "updatedAt": "2026-03-17T18:42:15.127Z",
+      "createdAt": "2026-03-17T18:42:15.127Z"
+    }
+  ]
+}

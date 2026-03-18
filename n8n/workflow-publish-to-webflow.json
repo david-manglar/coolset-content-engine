@@ -1,0 +1,202 @@
+{
+  "name": "Coolset — Publish to Webflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-3",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "publish"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.article_id }}"
+            }
+          ]
+        }
+      },
+      "id": "supabase-read-3",
+      "name": "Read Article",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsToSend": {
+          "values": [
+            { "fieldName": "status", "fieldValue": "cms_ready" }
+          ]
+        }
+      },
+      "id": "supabase-status-cmsready",
+      "name": "Set CMS Ready",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [660, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inject visual placeholder blocks into the article HTML\nconst article = $('Read Article').first().json;\nlet html = article.draft_html || '';\nconst visuals = article.visual_suggestions || [];\n\n// Style for placeholder blocks\nconst placeholderStyle = 'background: #f0f4ff; border: 2px dashed #80B3FF; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center; color: #060850; font-size: 14px;';\n\n// Process each visual suggestion\nfor (const visual of visuals) {\n  const placeholder = `<div style=\"${placeholderStyle}\"><p style=\"font-weight: 600; margin-bottom: 8px;\">[${visual.type === 'cover' ? 'COVER IMAGE' : 'VISUAL'}]</p><p>${visual.description}</p></div>`;\n  \n  if (visual.type === 'cover') {\n    // Insert cover placeholder at the very top\n    html = placeholder + '\\n' + html;\n  } else if (visual.placement) {\n    // Try to insert after the section heading that matches the placement\n    const placementLower = visual.placement.toLowerCase();\n    \n    // Look for h2 or h3 headings that contain the placement text\n    const headingRegex = new RegExp(\n      `(<h[23][^>]*>.*?${placementLower.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}.*?</h[23]>)`,\n      'i'\n    );\n    \n    if (headingRegex.test(html)) {\n      html = html.replace(headingRegex, `$1\\n${placeholder}`);\n    } else {\n      // If no matching heading found, append before the last section\n      html = html + '\\n' + placeholder;\n    }\n  }\n}\n\nreturn [{\n  json: {\n    article_id: article.id,\n    title: article.title || 'Untitled',\n    slug: article.slug || 'untitled',\n    final_html: html,\n    meta_description: article.meta_description || ''\n  }\n}];"
+      },
+      "id": "code-inject-3",
+      "name": "Inject Visual Placeholders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.webflow.com/v2/collections/{{ $env.WEBFLOW_COLLECTION_ID }}/items",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "webflowOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"isArchived\": false,\n  \"isDraft\": false,\n  \"fieldData\": {\n    \"name\": {{ JSON.stringify($json.title) }},\n    \"slug\": {{ JSON.stringify($json.slug) }},\n    \"post-body\": {{ JSON.stringify($json.final_html) }},\n    \"meta-description\": {{ JSON.stringify($json.meta_description) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "webflow-create-3",
+      "name": "Create Webflow Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300],
+      "credentials": {
+        "webflowOAuth2Api": {
+          "id": "WEBFLOW_CREDENTIAL_ID",
+          "name": "Webflow OAuth2"
+        }
+      },
+      "notes": "Uses HTTP Request because Webflow v2 API gives more control over field mapping. Replace WEBFLOW_COLLECTION_ID in the URL with your actual collection ID, or set it as an n8n environment variable."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "articles",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Inject Visual Placeholders').first().json.article_id }}"
+            }
+          ]
+        },
+        "fieldsToSend": {
+          "values": [
+            { "fieldName": "final_html", "fieldValue": "={{ $('Inject Visual Placeholders').first().json.final_html }}" },
+            { "fieldName": "webflow_item_id", "fieldValue": "={{ $json.id }}" },
+            { "fieldName": "webflow_slug", "fieldValue": "={{ $json.fieldData?.slug || $('Inject Visual Placeholders').first().json.slug }}" },
+            { "fieldName": "status", "fieldValue": "published" }
+          ]
+        }
+      },
+      "id": "supabase-write-3",
+      "name": "Update Article Published",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1320, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, webflow_item_id: $('Create Webflow Item').first().json.id }) }}"
+      },
+      "id": "respond-3",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Read Article", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Article": {
+      "main": [
+        [{ "node": "Set CMS Ready", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set CMS Ready": {
+      "main": [
+        [{ "node": "Inject Visual Placeholders", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inject Visual Placeholders": {
+      "main": [
+        [{ "node": "Create Webflow Item", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Webflow Item": {
+      "main": [
+        [{ "node": "Update Article Published", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update Article Published": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    { "name": "coolset" }
+  ]
+}
