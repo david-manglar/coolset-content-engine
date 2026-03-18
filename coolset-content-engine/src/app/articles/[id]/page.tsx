@@ -245,9 +245,10 @@ export default function ArticleDetailPage({
       {/* Publishing status */}
       {article.status === 'cms_ready' && (
         <div className="space-y-6">
-          <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 flex items-center gap-3">
+            <Loader2Icon className="h-4 w-4 animate-spin text-sky-600" />
             <p className="text-sm text-sky-800">
-              Publishing article to Webflow...
+              Publishing article to Webflow... <span className="text-sky-600/70">This can take 1–2 min.</span>
             </p>
           </div>
           {article.final_html && (
