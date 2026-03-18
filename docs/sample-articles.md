@@ -105,20 +105,20 @@ Don't present the Omnibus as final or enacted — it's a proposal. Don't say com
 
 ---
 
-## 6. Building a Business Case for Sustainability Software
+## 6. How to Prepare Your Supply Chain for CBAM Reporting
 
 **What is it?**
-ROI frameworks for sustainability software. How to justify the budget internally and get CFO buy-in when the returns aren't always obvious.
+Practical steps for getting your suppliers ready to provide the emissions data you need for CBAM compliance, especially if you're importing from outside the EU.
 
 **Who is it for?**
-Sustainability managers
+Procurement & supply chain managers
 
 **Key claims:**
-- Most sustainability teams still run on spreadsheets, which breaks down once you hit CSRD-level reporting requirements. Manual data collection alone can eat 40+ hours per reporting cycle.
-- Coolset customers typically cut reporting time by around 60%, which translates directly into FTE savings and faster audit turnaround.
+- CBAM requires importers to report embedded emissions for covered goods (steel, aluminium, cement, fertilisers, electricity, hydrogen). From 2026 you'll need actual supplier-level data, not just defaults.
+- Most non-EU suppliers have never calculated product-level emissions before. If you wait until they're required to provide it, you'll be scrambling.
 
 **Our angle:**
-Sustainability managers know they need better tooling but struggle to make the case in finance terms. Frame it around three things: compliance risk reduction (CSRD fines, failed audits), operational efficiency (hours saved on manual collection and consolidation), and strategic value (investor confidence, better ESG ratings). Include a simple ROI calculation approach they can adapt.
+This isn't just a compliance exercise. Companies that start engaging suppliers on emissions data now will have better data quality, fewer surprises at the border, and stronger supplier relationships. Treat it as a procurement capability, not a one-off reporting task. Walk through a realistic timeline: what to do 12 months out, 6 months out, and at go-live.
 
 **Avoid:**
-Don't make it a product pitch. The article should be genuinely useful even if they don't pick Coolset. Don't overstate the compliance fine risk, it varies by member state and enforcement is still ramping up.
+Don't assume readers already understand embedded emissions calculations. Keep the technical stuff accessible. Don't focus only on the penalty risk, focus on the operational reality of actually collecting this data from suppliers who may not speak the same sustainability language.
