@@ -17,6 +17,7 @@ const WEBFLOW_API_TOKEN = process.env.WEBFLOW_TOKEN!
 
 export async function POST(request: NextRequest) {
   let article_id: string | undefined
+  let previousStatus: string | undefined
 
   try {
     const body = await request.json()
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 })
     }
 
+    previousStatus = article.status
     const html = article.draft_html || article.final_html
     if (!html) {
       return NextResponse.json({ error: 'No HTML content to publish' }, { status: 400 })
@@ -119,7 +121,7 @@ Instructions:
 
     // Agentic loop — Claude will call the tool
     let response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: 'claude-sonnet-4-6',
       max_tokens: 8192,
       tools,
       messages,
@@ -186,7 +188,7 @@ Instructions:
       })
 
       response = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
+        model: 'claude-sonnet-4-6',
         max_tokens: 256,
         tools,
         messages,
@@ -224,7 +226,7 @@ Instructions:
 
     // Reset status back to draft on failure
     if (article_id) {
-      await supabase.from('articles').update({ status: 'draft' }).eq('id', article_id)
+      await supabase.from('articles').update({ status: previousStatus || 'review' }).eq('id', article_id)
     }
 
     return NextResponse.json(

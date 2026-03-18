@@ -102,3 +102,23 @@ The Omnibus is being misread in both directions. Some companies are using it as 
 
 **Avoid:**
 Don't present the Omnibus as final or enacted — it's a proposal. Don't say companies are "off the hook" — even exempted companies face growing investor and customer pressure regardless of legal obligation.
+
+---
+
+## 6. Building a Business Case for Sustainability Software
+
+**What is it?**
+ROI frameworks for sustainability software. How to justify the budget internally and get CFO buy-in when the returns aren't always obvious.
+
+**Who is it for?**
+Sustainability managers
+
+**Key claims:**
+- Most sustainability teams still run on spreadsheets, which breaks down once you hit CSRD-level reporting requirements. Manual data collection alone can eat 40+ hours per reporting cycle.
+- Coolset customers typically cut reporting time by around 60%, which translates directly into FTE savings and faster audit turnaround.
+
+**Our angle:**
+Sustainability managers know they need better tooling but struggle to make the case in finance terms. Frame it around three things: compliance risk reduction (CSRD fines, failed audits), operational efficiency (hours saved on manual collection and consolidation), and strategic value (investor confidence, better ESG ratings). Include a simple ROI calculation approach they can adapt.
+
+**Avoid:**
+Don't make it a product pitch. The article should be genuinely useful even if they don't pick Coolset. Don't overstate the compliance fine risk, it varies by member state and enforcement is still ramping up.

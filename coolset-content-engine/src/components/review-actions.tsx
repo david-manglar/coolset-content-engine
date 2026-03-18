@@ -60,7 +60,7 @@ export function ReviewActions({ articleId, status }: ReviewActionsProps) {
         {approving ? 'Publishing...' : 'Approve & Publish'}
       </Button>
 
-      {status === 'draft' && (
+      {(status === 'draft' || status === 'review') && (
         <Button variant="outline" onClick={handleSaveChanges} disabled={saving}>
           {saving && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
           {saving ? 'Saving...' : 'Save changes'}

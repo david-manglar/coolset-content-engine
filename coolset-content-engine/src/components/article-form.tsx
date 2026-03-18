@@ -95,7 +95,7 @@ export function ArticleForm() {
       // 2. Trigger n8n to generate the brief
       await triggerWebhook('generateBrief', { article_id: data.id })
 
-      toast.success('Article created! Generating brief...')
+      toast.success('Brief created! Please review it.')
       router.push(`/articles/${data.id}`)
     } catch (err) {
       console.error(err)

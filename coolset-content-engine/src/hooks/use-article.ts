@@ -55,7 +55,7 @@ export function useArticle(id: string) {
           filter: `id=eq.${id}`,
         },
         (payload) => {
-          setArticle(payload.new as Article)
+          setArticle((prev) => ({ ...prev, ...payload.new } as Article))
         }
       )
       .subscribe()
